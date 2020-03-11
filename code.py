@@ -14,9 +14,6 @@ from stanfordcorenlp import StanfordCoreNLP
 
 nlp = StanfordCoreNLP(r'stanford-corenlp-full-2018-02-27')
 
-sentence = 'Guangdong University of Foreign Studies is located in Guangzhou.'
-print(nlp.word_tokenize(sentence))
-
 def clean_text(text):
     '''Clean text by removing unnecessary characters and altering the format of words.'''
 
@@ -76,21 +73,21 @@ dev_paragraphs,dev_questions = func(dev_paragraphs,dev_questions)
 dictionry = {"pad":0,"<BOS>":1,"<EOS>":2}  
  
 def build_vocab(paragraphs):
-    for i in paragraphs:
-        if i not in dictionry:
-            dictionry[i] = len(dictionry)
+    for paragraph in paragraphs:
+        if paragraph not in dictionry:
+            dictionry[paragraph] = len(dictionry)
     
 def build_vocab_list(list_words):
-    for i in list_words:
-        build_vocab(i.split())
+    for paragraph in list_words:
+        build_vocab(paragraph.split())
             
 build_vocab_list(dev_paragraphs)
 build_vocab_list(dev_questions)
 
-def sentence_to_index(sentence):
-    for i in range(len(sentence)):
-        sentence[i] = dictionry[sentence[i]]
-    return sentence
+def sentence_to_index(sentences):
+    for sentence in range(len(sentences)):
+        sentences[sentence] = dictionry[sentences[sentence]]
+    return sentences
 
 def list_to_index(_list):
     for i in range(len(_list)):
