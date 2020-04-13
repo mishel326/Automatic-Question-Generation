@@ -6,8 +6,9 @@ Created on Wed Apr  8 14:33:05 2020
 """
 
 import pickle
+import numpy as np 
 from keras.models import Model
-from keras.layers import Input, LSTM, Dense, Embedding, TimeDistributed
+from keras.layers import Input, LSTM, Dense, Embedding
 
 # Load data (deserialize)
 with open('preprocessing.pickle', 'rb') as handle:
@@ -22,10 +23,13 @@ MAX_LEN_QUESTIONS = len(unserialized_data["train_questions"][0])
 VOCAB_SIZE = len(word2indx)
 EMBEDDING_DIM = 300
 
-train_paragraphs = unserialized_data["train_sentence"] + unserialized_data["dev_sentence"]
-train_questions = unserialized_data["train_questions"] + unserialized_data["dev_questions"]
+train_paragraphs = np.concatenate((unserialized_data["train_sentence"],unserialized_data["dev_sentence"]),axis = 0)
+train_questions = np.concatenate((unserialized_data["train_questions"],unserialized_data["dev_questions"]),axis = 0)
 test_paragraphs = unserialized_data["test_sentence"]
 test_questions = unserialized_data["test_questions"]
+target = train_questions[:,1:]
+
+#para = np.concatenate((train_paragraphs,test_paragraphs),axis = None).reshape(len(para)//200,200)
 
 def embedding_layer_creater(VOCAB_SIZE, EMBEDDING_DIM, MAX_LEN, embedding_matrix):
   
@@ -39,6 +43,7 @@ def embedding_layer_creater(VOCAB_SIZE, EMBEDDING_DIM, MAX_LEN, embedding_matrix
 embedding_layer_para = embedding_layer_creater(VOCAB_SIZE, EMBEDDING_DIM, MAX_LEN_PARAGRAPHS, embedding_matrix)
 embedding_layer_questions = embedding_layer_creater(VOCAB_SIZE, EMBEDDING_DIM, MAX_LEN_QUESTIONS, embedding_matrix)
 
+
 def seq2seq_model_builder(HIDDEN_DIM=300):
     
     encoder_inputs = Input(shape=(MAX_LEN_PARAGRAPHS, ),)
@@ -48,19 +53,21 @@ def seq2seq_model_builder(HIDDEN_DIM=300):
     
     decoder_inputs = Input(shape=(MAX_LEN_QUESTIONS, ),)
     decoder_embedding = embedding_layer_questions(decoder_inputs)
-    decoder_LSTM = LSTM(HIDDEN_DIM, return_state=True, return_sequences=True)
+    decoder_LSTM = LSTM(HIDDEN_DIM, return_sequences=True)
     decoder_outputs, _, _ = decoder_LSTM(decoder_embedding, initial_state=[state_h, state_c])
     
-    dense_layer = Dense(VOCAB_SIZE, activation='softmax')
-    outputs = TimeDistributed(dense_layer)(decoder_outputs)
-    model = Model([encoder_inputs, decoder_inputs], outputs)
+    decoder_dense = Dense(VOCAB_SIZE, activation='softmax')
+    decoder_outputs = decoder_dense(decoder_outputs)
+#    dense_layer = Dense(VOCAB_SIZE, activation='softmax')
+##    outputs = TimeDistributed(dense_layer)(decoder_outputs)
+    model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
     
     return model
 
 model = seq2seq_model_builder()
 model.summary()
-model.compile(optimizer='rmsprop', loss='categorical_crossentropy',
+model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
-model.fit([train_paragraphs, train_questions],train_questions, validation_split=0.2,
-          batch_size=10,
+model.fit([train_paragraphs, train_questions],target, validation_split=0.2,
+          batch_size=100,
           epochs=20)
